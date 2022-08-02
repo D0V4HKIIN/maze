@@ -1,0 +1,352 @@
+<!DOCTYPE html PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html>
+
+<head>
+	<title>
+		Maze Generator
+	</title>
+</head>
+
+<body>
+	<canvas id="frame" width="900" height="900" style="border-style: solid;
+	image-rendering: -moz-crisp-edges;
+	image-rendering: -webkit-crisp-edges;
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;"></canvas>
+
+	<div>Size:<input type="number" id="size" onchange="updateSize()"></div>
+	<div>Limit:<input type="number" id="limit" onchange="updateLimit()"></div>
+	<div>Step:<input type="number" id="step" onchange="updateStep()"></div>
+	<div>Animate:<input type="checkbox" id="animate" onchange="updateAnimation()" checked></div>
+	<div><button onclick="regenerate()">REGENERATE</button></div>
+
+</body>
+
+<script defer>
+	var stop = true;
+
+	var step = 10;
+	var stepInput = document.getElementById("step");
+	stepInput.value = step;
+
+	function updateStep() {
+		step = Number(stepInput.value);
+	}
+
+	var size = 100;
+	var sizeInput = document.getElementById("size");
+	sizeInput.value = size;
+
+	function updateSize() {
+		console.log("asd");
+		size = Number(sizeInput.value);
+	}
+
+	async function regenerate() {
+		stop = false;
+
+		//reset
+
+		start = [0, 0];
+		end = [size - 1, size - 1];
+
+		grid = [];
+		path = [];
+
+
+		for (var x = 0; x < size; x++) {
+			grid.push([]);
+			for (var y = 0; y < size; y++) {
+				grid[x][y] = 0;
+			}
+		}
+
+
+		ctx.fillStyle = "black";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+		ctx.fillStyle = "green";
+		ctx.fillRect(0, 0, squareSize, squareSize);
+		ctx.fillStyle = "red";
+		ctx.fillRect((grid.length - 1) * squareSize, (grid.length - 1) * squareSize, squareSize, squareSize);
+		ctx.fillStyle = "white";
+
+		await sleep(10);
+
+		generate(size);
+	}
+
+	var countLimit = 10000000000;
+	var limitInput = document.getElementById("limit");
+	limitInput.value = countLimit;
+
+	function updateLimit() {
+		countLimit = Number(limitInput.value);
+	}
+
+	const padding = 10;
+
+	start = [0, 0];
+	end = [size - 1, size - 1];
+
+	var grid = [];
+	var path = [];
+
+	for (var x = 0; x < size; x++) {
+		grid.push([]);
+		for (var y = 0; y < size; y++) {
+			grid[x][y] = 0;
+		}
+	}
+
+	var animation = true;
+	animationInput = document.getElementById("animate");
+
+	function updateAnimation() {
+		animation = animationInput.checked;
+	}
+
+	const canvas = document.getElementById("frame");
+	const ctx = canvas.getContext("2d");
+	var squareSize = (canvas.width) / grid.length;
+
+	ctx.fillStyle = "black";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+	ctx.fillStyle = "green";
+	ctx.fillRect(0, 0, squareSize, squareSize);
+	ctx.fillStyle = "red";
+	ctx.fillRect((grid.length - 1) * squareSize, (grid.length - 1) * squareSize, squareSize, squareSize);
+	ctx.fillStyle = "white";
+
+	function drawGrid(g) {
+
+		for (var x = 0; x < g.length; x++) {
+			for (var y = 0; y < g[x].length; y++) {
+				if (g[x][y] == 0) {
+					ctx.fillStyle = "black";
+				} else {
+					ctx.fillStyle = "white";
+
+				}
+				ctx.fillRect(x * squareSize, y * squareSize, squareSize, squareSize);
+
+			}
+		}
+
+		ctx.fillStyle = "green";
+		ctx.fillRect(0, 0, squareSize, squareSize);
+		ctx.fillStyle = "red";
+		ctx.fillRect((g.length - 1) * squareSize, (g.length - 1) * squareSize, squareSize, squareSize);
+
+	}
+
+	//add color scale?
+
+	function assignCell(pos, val) {
+
+		if (pos[0] >= 0 && pos[0] < grid.length && pos[1] >= 0 && pos[1] < grid.length && getCell(pos) != 1) {
+			grid[pos[0]][pos[1]] = val;
+			//ctx.fillStyle = "rgb(255,"+255*(count/(grid.length*grid.length))+",0)";
+			ctx.fillRect(pos[0] * squareSize, pos[1] * squareSize, squareSize, squareSize);
+			path.push([...pos]);
+			//console.log(JSON.stringify(pos))
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	function getCell(pos) {
+		if (pos[0] >= 0 && pos[0] < grid.length && pos[1] >= 0 && pos[1] < grid.length) {
+			return grid[pos[0]][pos[1]];
+		} else {
+			return 0;
+		}
+	}
+
+	function voisins(pos) {
+		var t = [];
+
+
+		if (pos[0] < size - 1) {
+			t.push([pos[0] + 1, pos[1]]);
+		}
+		if (pos[1] < size - 1) {
+			t.push([pos[0], pos[1] + 1]);
+		}
+		if (pos[0] > 0) {
+			t.push([pos[0] - 1, pos[1]]);
+		}
+		if (pos[1] > 0) {
+			t.push([pos[0], pos[1] - 1]);
+		}
+
+
+		return t;
+	}
+
+	function nbVoisins(v) {
+		var t = 0;
+		for (var i = 0; i < v.length; i++) {
+			t += getCell(v[i]);
+		}
+		return t;
+	}
+
+	function trapped(pos) {
+		var t = 0
+		var v = voisins(pos)
+		for (var i = 0; i < v.length; i++) {
+			if (nbVoisins(voisins(v[i])) > 1 || getCell(v[i]) == 1) {
+				t++;
+			}
+		}
+
+
+		if (t == v.length) {
+			for (var i = 0; i < path.length; i++) {
+				if (pos[0] == path[i][0] && pos[1] == path[i][1]) {
+					//console.log("splicing + " + path[i]);
+					path.splice(i, 1);
+					break;
+				}
+			}
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+	function allTrapped(g) {
+		var t = 0;
+		//var w = path.length;
+
+		for (var i = 0; i < path.length; i++) {
+			trapped(path[i]);
+		}
+
+		if (path.length == 0) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+
+	var count = 0;
+
+	async function generate(gridSize) {
+		squareSize = (canvas.width) / grid.length;
+		stop = true;
+		currentPos = [...start];
+		await assignCell(start, 1);
+
+
+		var dir;
+		count = 0;
+		while (count < countLimit && stop) {
+			oldPos = [...currentPos]
+			dir = await Math.floor(await Math.random() * 4);
+			if (dir == 0) {
+				currentPos[0]++;
+			} else if (dir == 1) {
+				currentPos[0]--;
+			} else if (dir == 2) {
+				currentPos[1]++;
+			} else if (dir == 3) {
+				currentPos[1]--;
+			}
+			if (await trapped(oldPos)) {
+
+				if (await nbVoisins(await voisins(currentPos)) == 1) {
+					if (!await assignCell(currentPos, 1)) {
+						currentPos = [...oldPos];
+					}
+				} else {
+					currentPos = [...oldPos];
+				}
+			} else {
+				if (await allTrapped(grid)) {
+					currentPos = [...path[await Math.floor(await Math.random() * path.length)]];
+				} else {
+					count = countLimit + 1;
+				}
+			}
+			count++;
+
+			if (animation && count % step == 0) {
+				await sleep(0);
+			}
+
+			//await drawGrid(grid, gridSize);
+			//await console.log(count)
+		}
+		await console.log(count)
+
+		if (await getCell(end) == 1) {
+
+			ctx.fillStyle = "green";
+			ctx.fillRect(0, 0, squareSize, squareSize);
+			ctx.fillStyle = "red";
+			ctx.fillRect((grid.length - 1) * squareSize, (grid.length - 1) * squareSize, squareSize, squareSize);
+			//await drawGrid(grid, gridSize);
+
+			findPath(grid);
+
+		} else {
+			//REGENERATE
+			/*grid = [];
+			for (var x = 0; x < size; x++) {
+				grid.push([]);
+				for (var y = 0; y < size; y++) {
+					grid[x][y] = 0;
+				}
+			}
+
+			ctx.fillStyle = "black";
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+			ctx.fillStyle = "green";
+			ctx.fillRect(0, 0, squareSize, squareSize);
+			ctx.fillStyle = "red";
+			ctx.fillRect((grid.length - 1) * squareSize, (grid.length - 1) * squareSize, squareSize, squareSize);
+			ctx.fillStyle = "white";
+
+			await generate(size);*/
+
+			console.log("not possible");
+
+		}
+	}
+
+	async function findPath(g){
+		var currentPos = [...start];
+	}
+
+	function sleep(ms) {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
+	function arraysMatch(arr1, arr2) {
+
+		// Check if the arrays are the same length
+		if (arr1.length !== arr2.length) return false;
+
+		// Check if all items exist and are in the same order
+		for (var i = 0; i < arr1.length; i++) {
+			if (arr1[i] !== arr2[i]) return false;
+		}
+
+		// Otherwise, return true
+		return true;
+
+	};
+
+
+	generate(size)
+</script>
+
+</html>
